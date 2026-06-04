@@ -1,31 +1,36 @@
-import json
 import os
 from flask import Flask, render_template, request, jsonify, redirect
 from datetime import datetime
 import requests
+from google.cloud import firestore
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
 SHELLY_SERVER = "https://shelly-16-eu.shelly.cloud" # Replace with your server
-AUTH_KEY = "MjdkZWN1aWQBF6065DF985253E54EFBEF5E6AECBC3F5A1BC49E10A88D6DFB9F2F0CCB6D3E5E6328E5B5DCEFDB7E"                           # Replace with your key
-DEVICE_ID = "3494547a181b"                         # Replace with your device ID
-ADMIN_PASSWORD = "change-me-123" 
-DATA_FILE = "guests.json"
+AUTH_KEY = os.environ.get("AUTH_KEY", "MjdkZWN1aWQBF6065DF985253E54EFBEF5E6AECBC3F5A1BC49E10A88D6DFB9F2F0CCB6D3E5E6328E5B5DCEFDB7E")                           # Replace with your key
+DEVICE_ID = os.environ.get("DEVICE_ID", "3494547a181b")                         # Replace with your device ID
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me-123") 
 
-# FIX FOR DEPLOYMENT: This ensures the file is saved in your main folder
-THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(THIS_FOLDER, "guests.json")
+# Initialize Firestore DB
+# When running on Cloud Run, this automatically picks up the service account credentials.
+# For local testing, you need the GOOGLE_APPLICATION_CREDENTIALS environment variable set.
+db = firestore.Client()
+guests_collection = db.collection('guests')
 
 def load_guests():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    return {}
+    guests = {}
+    docs = guests_collection.stream()
+    for doc in docs:
+        guests[doc.id] = doc.to_dict()
+    return guests
 
 def save_guests(guests):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(guests, f)
+    # In Firestore, it's more efficient to just save/update individual documents
+    # rather than overwriting the whole collection. 
+    # However, to keep the logic similar to the JSON approach:
+    for code, data in guests.items():
+        guests_collection.document(code).set(data)
 
 # Logic to check if the current time is within the guest's window
 def is_guest_valid(guest_data):
@@ -95,10 +100,8 @@ def delete_guest(code):
     if request.args.get('pw') != ADMIN_PASSWORD:
         return "Unauthorized", 401
     
-    guests = load_guests()
-    if code in guests:
-        del guests[code]
-        save_guests(guests)
+    # Delete the document from Firestore
+    guests_collection.document(code).delete()
     
     # Redirect back to the admin page so the list refreshes
     return redirect(f'/admin?pw={ADMIN_PASSWORD}')
