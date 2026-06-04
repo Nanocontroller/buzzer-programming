@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Guest Entry</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px 20px; background: #f4f7f6; }
+        .card { max-width: 400px; margin: auto; background: white; padding: 40px 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { color: #333; margin-bottom: 5px; }
+        p { color: #777; margin-bottom: 30px; }
+        .btn { 
+            background: #00d1b2; color: white; border: none; width: 100%; max-width: 250px;
+            padding: 20px; font-size: 18px; border-radius: 12px; cursor: pointer; 
+            font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        .btn:active { background: #00b89c; transform: scale(0.98); }
+        .status { margin-top: 25px; font-weight: bold; min-height: 24px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Welcome!</h1>
+        <p>Press the button below to buzz the front door.</p>
+        
+        <button class="btn" onclick="openDoor('{{ guest_code }}')">🔓 Open Door</button>
+        
+        <div id="statusMsg" class="status"></div>
+    </div>
+
+    <script>
+        function openDoor(code) {
+            const statusDiv = document.getElementById('statusMsg');
+            statusDiv.innerText = "Processing...";
+            statusDiv.style.color = "#3498db";
+
+            fetch('/trigger-buzzer/' + code, { method: 'POST' })
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(() => {
+                statusDiv.innerText = "✅ Success! Door Unlocked.";
+                statusDiv.style.color = "#2ecc71";
+                setTimeout(() => { statusDiv.innerText = ""; }, 5000);
+            })
+            .catch(() => {
+                statusDiv.innerText = "❌ Error: Could not unlock.";
+                statusDiv.style.color = "#ff3860";
+            });
+        }
+    </script>
+</body>
+</html>
