@@ -39,6 +39,10 @@ def is_guest_valid(guest_data):
     end = datetime.strptime(guest_data['end'], "%Y-%m-%d %H:%M")
     return start <= now <= end
 
+@app.route('/')
+def home():
+    return "Shelly Buzz Service is running"
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if request.args.get('pw') != ADMIN_PASSWORD:
